@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>バス運行管理｜管理者画面</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--surface:#181b24;--surface2:#1e2233;--surface3:#252a3a;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+  --text:#e8eaf0;--text-muted:#8892a4;--text-hint:#4a5568;
+  --accent:#4f9cf9;--accent-dim:#1a3a5c;
+  --green:#34d399;--green-dim:#0d2e1e;
+  --amber:#fbbf24;--amber-dim:#2d1f06;
+  --red:#f87171;--red-dim:#2d1010;
+  --radius:10px;
+}
+body{font-family:'Hiragino Kaku Gothic ProN','Hiragino Sans','Yu Gothic UI',sans-serif;
+  background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{height:52px;min-height:52px;background:var(--surface);border-bottom:0.5px solid var(--border2);
+  display:flex;align-items:center;padding:0 16px;gap:10px;z-index:100}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:16px}
+.logo h1{font-size:14px;font-weight:500}
+.spacer{flex:1}
+.status-pill{display:flex;align-items:center;gap:6px;font-size:12px;
+  padding:5px 12px;border-radius:20px;border:0.5px solid var(--border2);
+  background:var(--surface2);color:var(--text-muted)}
+.status-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--text-hint)}
+.status-pill.connected .dot{background:var(--green);box-shadow:0 0 6px var(--green)}
+.status-pill.connected{color:var(--green);border-color:rgba(52,211,153,0.3)}
+.time-display{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.header-btn{padding:6px 12px;border-radius:7px;font-size:12px;cursor:pointer;
+  border:0.5px solid var(--border2);background:var(--surface2);color:var(--text);
+  font-family:inherit;transition:all 0.15s;display:flex;align-items:center;gap:5px}
+.header-btn:hover{background:var(--surface3)}
+.header-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.main-layout{display:flex;flex:1;overflow:hidden}
+.side-panel{width:268px;min-width:268px;background:var(--surface);
+  border-right:0.5px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.panel-tabs{display:flex;border-bottom:0.5px solid var(--border)}
+.panel-tab{flex:1;padding:10px;font-size:12px;text-align:center;cursor:pointer;
+  color:var(--text-muted);border:none;background:none;font-family:inherit;
+  border-bottom:2px solid transparent;transition:all 0.15s}
+.panel-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.panel-content{flex:1;overflow-y:auto;padding:8px;display:none}
+.panel-content.active{display:block}
+.panel-content::-webkit-scrollbar{width:4px}
+.panel-content::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px}
+.bus-card{padding:12px 14px;border-radius:var(--radius);margin-bottom:6px;
+  border:0.5px solid var(--border);background:var(--surface2);cursor:pointer;transition:all 0.15s}
+.bus-card:hover{border-color:var(--border2);background:var(--surface3)}
+.bus-card.selected{border-color:var(--accent);background:var(--accent-dim)}
+.bus-card.offline{opacity:0.5}
+.bus-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bus-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.bus-info{flex:1;min-width:0}
+.bus-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bus-route-label{font-size:11px;color:var(--text-muted);margin-top:1px}
+.bus-badge{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;flex-shrink:0}
+.badge-running{background:var(--green-dim);color:var(--green);border:0.5px solid rgba(52,211,153,0.3)}
+.badge-stopped{background:var(--amber-dim);color:var(--amber);border:0.5px solid rgba(251,191,36,0.3)}
+.badge-offline{background:var(--surface3);color:var(--text-hint);border:0.5px solid var(--border)}
+.bus-meta{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.meta-item{font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:3px}
+.meta-item .val{color:var(--text);font-weight:500}
+.meta-sep{border-top:0.5px solid var(--border);margin:6px 0}
+.section-title{font-size:11px;color:var(--text-muted);font-weight:500;
+  text-transform:uppercase;letter-spacing:0.05em;padding:10px 6px 6px}
+.route-item{display:flex;align-items:center;gap:8px;padding:8px 10px;
+  border-radius:8px;margin-bottom:4px;background:var(--surface2);border:0.5px solid var(--border)}
+.route-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.route-name-text{font-size:13px;flex:1}
+.toggle-switch{width:32px;height:18px;border-radius:9px;background:var(--surface3);
+  cursor:pointer;position:relative;transition:background 0.2s;border:none;flex-shrink:0}
+.toggle-switch.on{background:var(--accent)}
+.toggle-switch::after{content:'';position:absolute;width:14px;height:14px;
+  background:#fff;border-radius:50%;top:2px;left:2px;transition:left 0.2s}
+.toggle-switch.on::after{left:16px}
+.draw-btns{display:flex;gap:5px;margin-bottom:8px;padding:0 2px}
+.draw-btn{flex:1;padding:6px 4px;border-radius:7px;font-size:11px;cursor:pointer;
+  border:0.5px solid var(--border2);background:var(--surface2);color:var(--text-muted);
+  font-family:inherit;transition:all 0.15s;text-align:center}
+.draw-btn:hover{background:var(--surface3);color:var(--text)}
+.draw-btn.drawing{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.draw-btn.amber{border-color:var(--amber);color:var(--amber)}
+.draw-btn.amber:hover{background:var(--amber-dim)}
+.draw-btn.red{border-color:var(--red);color:var(--red)}
+.draw-btn.red:hover{background:var(--red-dim)}
+.draw-btn.active-filter{background:var(--surface3);color:var(--text);border-color:var(--border2)}
+.stop-item{display:flex;align-items:center;gap:8px;padding:7px 10px;
+  border-radius:8px;margin-bottom:3px;background:var(--surface2);
+  border:0.5px solid var(--border);cursor:pointer;transition:all 0.15s}
+.stop-item:hover{border-color:var(--border2)}
+.stop-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:2px solid}
+.stop-name-text{font-size:12px;flex:1}
+.stop-time-text{font-size:11px;color:var(--text-muted)}
+.stop-edit{background:none;border:none;color:var(--text-hint);cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px}
+.stop-edit:hover{color:var(--accent);background:var(--accent-dim)}
+.stop-del{background:none;border:none;color:var(--text-hint);cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px}
+.stop-del:hover{color:var(--red);background:var(--red-dim)}
+.form-input{width:100%;padding:8px 10px;border:0.5px solid var(--border2);
+  border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;
+  outline:none;font-family:inherit;margin-bottom:6px}
+.form-input:focus{border-color:var(--accent)}
+select.form-input{appearance:auto;-webkit-appearance:auto;cursor:pointer;color-scheme:dark}
+.save-btn{width:100%;padding:8px;border-radius:8px;font-size:12px;cursor:pointer;
+  border:0.5px solid var(--accent);background:var(--accent-dim);color:var(--accent);
+  font-family:inherit;transition:all 0.15s}
+.save-btn:hover{background:var(--accent);color:#fff}
+.map-area{flex:1;position:relative}
+#map{width:100%;height:100%}
+.map-overlay{position:absolute;top:12px;right:12px;z-index:1000;display:flex;flex-direction:column;gap:8px}
+.map-btn{width:36px;height:36px;background:var(--surface);border:0.5px solid var(--border2);
+  border-radius:8px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text-muted);font-size:16px;transition:all 0.15s;
+  box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.map-btn:hover{background:var(--surface2);color:var(--text)}
+.map-hint{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);
+  color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;z-index:1000;
+  pointer-events:none;white-space:nowrap;box-shadow:0 2px 12px rgba(0,0,0,0.4);display:none}
+.bottom-bar{height:40px;min-height:40px;background:var(--surface);
+  border-top:0.5px solid var(--border);display:flex;align-items:center;
+  padding:0 16px;gap:20px;font-size:11px;color:var(--text-muted)}
+.bottom-stat{display:flex;align-items:center;gap:5px}
+.bottom-stat .val{color:var(--text);font-weight:500}
+.bus-marker-wrap{position:relative}
+.bus-marker{width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;border:3px solid #fff;font-size:18px;
+  box-shadow:0 2px 10px rgba(0,0,0,0.5);cursor:pointer}
+.bus-lbl{position:absolute;top:-22px;left:50%;transform:translateX(-50%);
+  background:rgba(15,17,23,0.92);color:#fff;font-size:11px;padding:2px 7px;
+  border-radius:4px;white-space:nowrap;pointer-events:none;font-weight:500}
+.leaflet-popup-content-wrapper{background:var(--surface) !important;
+  border:0.5px solid var(--border2) !important;border-radius:10px !important;
+  box-shadow:0 4px 20px rgba(0,0,0,0.5) !important;color:var(--text) !important}
+.leaflet-popup-tip{background:var(--surface) !important}
+.leaflet-popup-content{margin:12px 16px !important;font-family:inherit !important}
+.popup-title{font-size:14px;font-weight:500;margin-bottom:8px}
+.popup-row{display:flex;justify-content:space-between;font-size:12px;
+  padding:4px 0;border-bottom:0.5px solid var(--border);color:var(--text-muted)}
+.popup-row:last-child{border:none}
+.popup-row span:last-child{color:var(--text);font-weight:500}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);
+  z-index:2000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:0.5px solid var(--border2);border-radius:14px;
+  padding:20px 24px;width:90%;max-width:360px}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:16px}
+.modal label{font-size:12px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:4px}
+.modal-btns{display:flex;gap:8px;margin-top:16px}
+.modal-btns button{flex:1;padding:10px;border-radius:8px;font-size:13px;
+  cursor:pointer;font-family:inherit;border:0.5px solid var(--border2)}
+.btn-ok{background:var(--accent);color:#fff;border-color:var(--accent) !important}
+.btn-cancel{background:var(--surface2);color:var(--text-muted)}
+.toast{position:fixed;bottom:56px;left:50%;transform:translateX(-50%);
+  background:var(--surface3);border:0.5px solid var(--border2);
+  padding:10px 18px;border-radius:8px;font-size:13px;
+  opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:9999;
+  box-shadow:0 4px 16px rgba(0,0,0,0.4)}
+.toast.show{opacity:1}
+/* チェックリスト */
+.cl-item{display:flex;align-items:center;gap:8px;padding:6px 4px;
+  border-bottom:0.5px solid var(--border);font-size:12px;transition:all 0.3s}
+.cl-item:last-child{border:none}
+.cl-item.checked{opacity:0.5}
+.cl-check{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;font-size:11px;
+  flex-shrink:0;background:var(--surface2);transition:all 0.3s}
+.cl-check.ok{background:var(--green);border-color:var(--green);color:#fff}
+.cl-name{flex:1;color:var(--text)}
+.cl-time{font-size:10px;color:var(--text-muted)}
+/* 通過記録 */
+.pass-record{padding:8px 10px;border-radius:8px;margin-bottom:4px;
+  background:var(--surface2);border:0.5px solid var(--border);font-size:12px}
+.pass-record-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.pass-record-bus{font-weight:500;color:var(--text)}
+.pass-record-time{font-size:11px;color:var(--text-muted)}
+.pass-record-stop{color:var(--green);font-size:12px}
+</style>
+</head>
+<body>
+<style>
+#password-screen{position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;
+  justify-content:center;z-index:99999;flex-direction:column;gap:16px}
+#password-screen.hidden{display:none}
+.pw-card{background:#16213e;border:0.5px solid #0f3460;border-radius:16px;padding:32px 28px;
+  width:280px;text-align:center}
+.pw-logo{font-size:48px;margin-bottom:8px}
+.pw-title{color:#e2e8f0;font-size:18px;font-weight:600;margin-bottom:4px}
+.pw-sub{color:#94a3b8;font-size:13px;margin-bottom:20px}
+.pw-input{width:100%;padding:12px;border-radius:10px;border:1px solid #0f3460;
+  background:#0f3460;color:#e2e8f0;font-size:18px;text-align:center;letter-spacing:4px;
+  outline:none;box-sizing:border-box}
+.pw-btn{width:100%;padding:12px;border-radius:10px;border:none;background:#4f9cf9;
+  color:#fff;font-size:15px;font-weight:600;cursor:pointer;margin-top:10px}
+.pw-error{color:#f87171;font-size:12px;margin-top:8px;display:none}
+</style>
+<div id="password-screen">
+  <div class="pw-card">
+    <div class="pw-logo">🚌</div>
+    <div class="pw-title">Catch the Bus</div>
+    <div class="pw-sub">パスワードを入力してください</div>
+    <input class="pw-input" type="password" id="pw-input" placeholder="●●●●" maxlength="20">
+    <button class="pw-btn" onclick="checkPassword()">ログイン</button>
+    <div class="pw-error" id="pw-error">パスワードが違います</div>
+  </div>
+</div>
+<script>
+function checkPassword() {
+  var input = document.getElementById('pw-input').value;
+  if (input === '1749') {
+    document.getElementById('password-screen').classList.add('hidden');
+    sessionStorage.setItem('ctb_auth', '1');
+  } else {
+    document.getElementById('pw-error').style.display = 'block';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+document.getElementById('pw-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') checkPassword();
+});
+if (sessionStorage.getItem('ctb_auth') === '1') {
+  document.getElementById('password-screen').classList.add('hidden');
+}
+</script>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🚌</div>
+    <h1>バス運行管理</h1>
+  </div>
+  <div class="spacer"></div>
+  <button class="header-btn" id="edit-mode-btn">📍 バス停を追加</button>
+  <div class="status-pill" id="conn-status"><div class="dot"></div><span id="conn-text">接続中…</span></div>
+  <div class="time-display" id="clock"></div>
+</header>
+
+<div class="main-layout">
+  <div class="side-panel">
+    <div class="panel-tabs">
+      <button class="panel-tab active" id="ptab-buses">🚌 バス</button>
+      <button class="panel-tab" id="ptab-routes">🗺️ ルート</button>
+      <button class="panel-tab" id="ptab-stops">📍 バス停</button>
+      <button class="panel-tab" id="ptab-records">🕐 通過記録</button>
+      <button class="panel-tab" id="ptab-checklist">✅ チェック</button>
+    </div>
+
+    <div class="panel-content active" id="tab-buses">
+      <div id="bus-list">
+        <div style="padding:20px 0;text-align:center;color:var(--text-hint);font-size:13px">バス端末からの接続を待っています…</div>
+      </div>
+    </div>
+
+    <div class="panel-content" id="tab-routes">
+      <div class="section-title">ルート1（青）</div>
+      <div class="route-item">
+        <div class="route-dot" style="background:#4f9cf9"></div>
+        <span class="route-name-text" id="r1-label">ルート1</span>
+        <button class="toggle-switch on" id="tog-r1"></button>
+      </div>
+      <div class="draw-btns">
+        <button class="draw-btn" id="draw-r1-btn">✏️ 描く</button>
+        <button class="draw-btn amber" id="undo-r1-btn">↩ 戻す</button>
+        <button class="draw-btn red" id="clear-r1-btn">🗑 消す</button>
+      </div>
+      <div class="section-title">ルート2（オレンジ）</div>
+      <div class="route-item">
+        <div class="route-dot" style="background:#f97316"></div>
+        <span class="route-name-text" id="r2-label">ルート2</span>
+        <button class="toggle-switch on" id="tog-r2"></button>
+      </div>
+      <div class="draw-btns">
+        <button class="draw-btn" id="draw-r2-btn">✏️ 描く</button>
+        <button class="draw-btn amber" id="undo-r2-btn">↩ 戻す</button>
+        <button class="draw-btn red" id="clear-r2-btn">🗑 消す</button>
+      </div>
+      <div class="section-title" style="margin-top:8px">ルート名を変更</div>
+      <input class="form-input" id="r1-input" placeholder="ルート1の名前">
+      <input class="form-input" id="r2-input" placeholder="ルート2の名前">
+      <button class="save-btn" id="save-route-btn">💾 ルート名を保存</button>
+    </div>
+
+    <div class="panel-content" id="tab-stops">
+      <div class="section-title">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#4f9cf9;margin-right:4px"></span>ルート1のバス停
+      </div>
+      <div id="stops-r1"></div>
+      <div class="section-title" style="margin-top:6px">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f97316;margin-right:4px"></span>ルート2のバス停
+      </div>
+      <div id="stops-r2"></div>
+      <div style="padding:10px 4px;font-size:11px;color:var(--text-hint);text-align:center">
+        「📍 バス停を追加」→ 地図をクリック
+      </div>
+    </div>
+
+    <div class="panel-content" id="tab-records">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 4px">
+        <div style="display:flex;gap:4px">
+          <button class="draw-btn active-filter" id="filter-all" style="width:auto;padding:4px 8px;font-size:11px">全て</button>
+          <button class="draw-btn" id="filter-blue" style="width:auto;padding:4px 8px;font-size:11px;color:#4f9cf9;border-color:#4f9cf9">青バス</button>
+          <button class="draw-btn" id="filter-yellow" style="width:auto;padding:4px 8px;font-size:11px;color:#fbbf24;border-color:#fbbf24">黄バス</button>
+        </div>
+        <button class="draw-btn red" id="clear-records-btn" style="width:auto;padding:4px 8px">🗑 クリア</button>
+      </div>
+      <div id="pass-records-list">
+        <div style="font-size:12px;color:var(--text-hint);padding:8px 4px">まだ通過記録はありません</div>
+      </div>
+    </div>
+
+    <div class="panel-content" id="tab-checklist">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 4px;margin-bottom:4px">
+        <span style="font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:0.05em">バス停チェックリスト</span>
+      </div>
+      <div style="margin-bottom:8px">
+        <div class="section-title" style="margin-bottom:4px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#4f9cf9;margin-right:4px"></span>ルート1
+          <span id="cl-prog-1" style="font-size:11px;color:var(--text-muted);margin-left:8px"></span>
+        </div>
+        <div id="cl-r1"></div>
+      </div>
+      <div>
+        <div class="section-title" style="margin-bottom:4px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f97316;margin-right:4px"></span>ルート2
+          <span id="cl-prog-2" style="font-size:11px;color:var(--text-muted);margin-left:8px"></span>
+        </div>
+        <div id="cl-r2"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="map-area">
+    <div id="map"></div>
+    <div class="map-hint" id="map-hint"></div>
+    <div class="map-overlay">
+      <div class="map-btn" id="fit-btn" title="全バスを表示">⊞</div>
+      <div class="map-btn" id="reset-btn" title="名古屋に戻す">⌂</div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <div class="bottom-stat">運行中：<span class="val" id="stat-running">0台</span></div>
+  <div class="bottom-stat">停車中：<span class="val" id="stat-stopped">0台</span></div>
+  <div class="bottom-stat">最終更新：<span class="val" id="stat-update">―</span></div>
+  <div style="flex:1"></div>
+  <div style="font-size:11px;color:var(--text-hint)">🔥 Firebase: catch-the-bus-7de42</div>
+</div>
+
+<div class="modal-overlay" id="stop-modal">
+  <div class="modal">
+    <h3>📍 バス停を追加</h3>
+    <label>バス停名</label>
+    <input class="form-input" id="stop-name-input" placeholder="例：〇〇公園前">
+    <label>ルート</label>
+    <select class="form-input" id="stop-route-sel" style="appearance:auto;-webkit-appearance:auto;cursor:pointer">
+      <option value="1">ルート1（青）</option>
+      <option value="2">ルート2（オレンジ）</option>
+    </select>
+    <label>到着時刻（任意）</label>
+    <input class="form-input" id="stop-time-input" type="time">
+    <div class="modal-btns">
+      <button class="btn-cancel" id="modal-cancel">キャンセル</button>
+      <button class="btn-ok" id="modal-ok">追加</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h3>✏️ バス停を編集</h3>
+    <label>バス停名</label>
+    <input class="form-input" id="edit-name-input" placeholder="バス停名">
+    <label>到着時刻</label>
+    <input class="form-input" id="edit-time-input" type="time">
+    <div class="modal-btns">
+      <button class="btn-cancel" id="edit-cancel">キャンセル</button>
+      <button class="btn-ok" id="edit-ok">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyAQ233V2MARq5kweD0tL0cIPQA7ffkCxuo",
+  authDomain: "catch-the-bus-7de42.firebaseapp.com",
+  databaseURL: "https://catch-the-bus-7de42-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "catch-the-bus-7de42",
+  storageBucket: "catch-the-bus-7de42.firebasestorage.app",
+  messagingSenderId: "770999214364",
+  appId: "1:770999214364:web:0e58445b69b14b3facdad9"
+});
+const db = firebase.database();
+
+const NAGOYA = [35.1815, 136.9066];
+const ROUTE_COLOR = { '1': '#4f9cf9', '2': '#f97316' };
+const BUS_COLORS = ['#4f9cf9','#34d399','#fbbf24','#f87171','#a78bfa','#fb923c'];
+
+let buses = {};
+let selectedBusId = null;
+let editMode = false;
+let pendingLatLng = null;
+let routeVisible = { '1': true, '2': true };
+let stops = { '1': [], '2': [] };
+let routeNames = { '1': 'ルート1', '2': 'ルート2' };
+let customRoutes = { '1': [], '2': [] };
+let stopMarkerLayers = { '1': [], '2': [] };
+let routeLines = { '1': null, '2': null };
+let customRouteLines = { '1': null, '2': null };
+let customDotLayers = { '1': [], '2': [] };
+let drawMode = null;
+let editTarget = null;
+
+const map = L.map('map', { center: NAGOYA, zoom: 13, zoomControl: false });
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors', maxZoom: 19
+}).addTo(map);
+// レイアウト確定後にサイズを再計算（クリック座標ずれの防止）
+setTimeout(function() { map.invalidateSize(); }, 300);
+
+// ── Firebase リアルタイム受信 ──────────────────────
+
+// バス位置
+db.ref('buses').on('value', function(snap) {
+  var data = snap.val();
+  if (!data) return;
+  setConnected(true);
+  Object.keys(data).forEach(function(id) { onBusData(id, data[id]); });
+});
+
+// バス停データ（Firebaseから読み込み）
+db.ref('config/stops').on('value', function(snap) {
+  var data = snap.val();
+  if (data) {
+    // Firebaseは配列をオブジェクトに変換することがあるため、必ず配列に戻す
+    stops['1'] = data['1'] ? Object.values(data['1']) : [];
+    stops['2'] = data['2'] ? Object.values(data['2']) : [];
+    renderStops();
+    renderStopList('1');
+    renderStopList('2');
+    renderChecklist();
+  }
+});
+
+// ルート名
+db.ref('config/routeNames').on('value', function(snap) {
+  var data = snap.val();
+  if (data) {
+    routeNames = data;
+    document.getElementById('r1-label').textContent = routeNames['1'];
+    document.getElementById('r2-label').textContent = routeNames['2'];
+    document.getElementById('r1-input').value = routeNames['1'];
+    document.getElementById('r2-input').value = routeNames['2'];
+  }
+});
+
+// カスタムルート
+db.ref('config/customRoutes').on('value', function(snap) {
+  var data = snap.val();
+  if (data) {
+    customRoutes = data;
+    setTimeout(function() {
+      renderCustomRoute('1');
+      renderCustomRoute('2');
+    }, 300);
+  }
+});
+
+// 通過記録
+db.ref('pass_records').on('value', function(snap) {
+  var data = snap.val();
+  renderPassRecords(data);
+});
+
+// バス停チェックリスト（iPadからのリアルタイム状態）
+var checklistData = {};
+db.ref('bus_checklist').on('value', function(snap) {
+  checklistData = snap.val() || {};
+  renderChecklist();
+});
+
+function onBusData(busId, d) {
+  if (!d.lat || !d.lng) return;
+  var isNew = !buses[busId];
+  if (isNew) {
+    var idx = Object.keys(buses).length % BUS_COLORS.length;
+    buses[busId] = { color: d.color || BUS_COLORS[idx], trail: [] };
+  } else if (d.color) {
+    buses[busId].color = d.color;
+  }
+  var bus = buses[busId];
+  Object.assign(bus, d, { busId: busId });
+  bus.trail.push([d.lat, d.lng]);
+  if (bus.trail.length > 80) bus.trail.shift();
+  putBusMarker(busId);
+  putTrail(busId);
+  refreshBusList();
+  refreshBottomBar();
+  if (isNew) toast('🚌 ' + d.busName + ' が接続しました');
+}
+
+function putBusMarker(busId) {
+  var bus = buses[busId];
+  if (bus.marker) {
+    bus.marker.setLatLng([bus.lat, bus.lng]);
+    // 色が変わっていたらマーカーを再生成
+    if (bus._markerColor !== bus.color) {
+      map.removeLayer(bus.marker);
+      bus.marker = null;
+    } else {
+      return;
+    }
+  }
+  bus._markerColor = bus.color;
+  bus.marker = L.marker([bus.lat, bus.lng], {
+    icon: L.divIcon({
+      className: '',
+      html: '<div class="bus-marker-wrap"><div class="bus-marker" style="background:' + bus.color + '">🚌</div><div class="bus-lbl">' + bus.busName + '</div></div>',
+      iconSize: [40, 40], iconAnchor: [20, 20]
+    }), zIndexOffset: 1000
+  }).addTo(map);
+  bus.marker.on('click', function() { doSelectBus(busId); });
+}
+
+function putTrail(busId) {
+  var bus = buses[busId];
+  if (bus.trail.length < 2) return;
+  if (bus.trailLine) map.removeLayer(bus.trailLine);
+  bus.trailLine = L.polyline(bus.trail, { color: bus.color, weight: 3, opacity: 0.35, dashArray: '6 4' }).addTo(map);
+}
+
+function doSelectBus(busId) {
+  selectedBusId = busId;
+  refreshBusList();
+  var bus = buses[busId];
+  map.flyTo([bus.lat, bus.lng], 15, { duration: 0.8 });
+  if (bus.marker.isPopupOpen()) {
+    bus.marker.closePopup();
+    return;
+  }
+  bus.marker.bindPopup(L.popup({ maxWidth: 120, closeButton: false, autoClose: true, className: 'compact-popup' }).setContent(
+    '<div style="font-size:12px;font-weight:500;text-align:center">' + bus.busName + '</div>' +
+    '<div style="font-size:11px;text-align:center;margin-top:2px">' +
+    (bus.status==='running'?'<span style="color:#34d399">🟢 運行中</span>':'<span style="color:#fbbf24">🟡 停車中</span>') +
+    '</div>'
+  )).openPopup();
+}
+
+function refreshBusList() {
+  var ids = Object.keys(buses);
+  var el = document.getElementById('bus-list');
+  if (!ids.length) {
+    el.innerHTML = '<div style="padding:20px 0;text-align:center;color:var(--text-hint);font-size:13px">バス端末からの接続を待っています…</div>';
+    return;
+  }
+  el.innerHTML = ids.map(function(id) {
+    var b = buses[id];
+    var offline = Date.now() - (b.timestamp||0) > 20000;
+    var running = b.status === 'running';
+    var sel = id === selectedBusId;
+    return '<div class="bus-card ' + (sel?'selected':'') + ' ' + (offline?'offline':'') + '" data-id="' + id + '">' +
+      '<div class="bus-top">' +
+      '<div class="bus-icon" style="background:' + b.color + '22;color:' + b.color + '">🚌</div>' +
+      '<div class="bus-info"><div class="bus-name">' + b.busName + '</div><div class="bus-route-label">' + (b.route||'ルート未設定') + '</div></div>' +
+      '<span class="bus-badge ' + (offline?'badge-offline':running?'badge-running':'badge-stopped') + '">' + (offline?'オフライン':running?'運行中':'停車中') + '</span>' +
+      '</div><div class="meta-sep"></div>' +
+      '<div class="bus-meta"><div class="meta-item">速度<span class="val">' + Math.round(b.speed||0) + 'km/h</span></div><div class="meta-item">更新<span class="val">' + fmt(b.timestamp) + '</span></div></div>' +
+      (offline ? '<div style="margin-top:8px"><button class="draw-btn red del-bus-btn" data-id="' + id + '" style="width:100%;padding:6px 4px;font-size:11px">🗑 このバスをDBから削除</button></div>' : '') +
+      '</div>';
+  }).join('');
+  el.querySelectorAll('.bus-card').forEach(function(card) {
+    card.addEventListener('click', function(e) {
+      if (e.target.classList.contains('del-bus-btn')) return;
+      doSelectBus(card.dataset.id);
+    });
+  });
+  el.querySelectorAll('.del-bus-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var busId = btn.dataset.id;
+      var busName = buses[busId] ? buses[busId].busName : busId;
+      if (!confirm('「' + busName + '」をデータベースから削除しますか？\nオフラインのバスが消えます。')) return;
+      db.ref('buses/' + busId).remove().then(function() {
+        if (buses[busId]) {
+          if (buses[busId].marker) map.removeLayer(buses[busId].marker);
+          if (buses[busId].trailLine) map.removeLayer(buses[busId].trailLine);
+          delete buses[busId];
+        }
+        if (selectedBusId === busId) selectedBusId = null;
+        refreshBusList();
+        refreshBottomBar();
+        toast('🗑 ' + busName + ' を削除しました');
+      }).catch(function(e) {
+        toast('❌ 削除エラー: ' + e.message);
+      });
+    });
+  });
+}
+
+function refreshBottomBar() {
+  var ids = Object.keys(buses);
+  var running = ids.filter(function(id) { return buses[id].status === 'running'; }).length;
+  document.getElementById('stat-running').textContent = running + '台';
+  document.getElementById('stat-stopped').textContent = (ids.length - running) + '台';
+  document.getElementById('stat-update').textContent = new Date().toLocaleTimeString('ja-JP');
+}
+
+// ── チェックリスト ────────────────────────────────
+function renderChecklist() {
+  ['1','2'].forEach(function(r) {
+    var el = document.getElementById('cl-r' + r);
+    var prog = document.getElementById('cl-prog-' + r);
+    if (!el) return;
+    var list = stops[r] || [];
+    if (!list.length) {
+      el.innerHTML = '<div style="font-size:11px;color:var(--text-hint);padding:4px">バス停なし</div>';
+      prog.textContent = '';
+      return;
+    }
+    // 全バスのチェック状態をマージ
+    var checked = {};
+    Object.keys(checklistData).forEach(function(busId) {
+      var busData = checklistData[busId];
+      if (busData && busData[r]) {
+        Object.keys(busData[r]).forEach(function(idx) {
+          if (busData[r][idx] && busData[r][idx].checked) {
+            checked[idx] = busData[r][idx];
+          }
+        });
+      }
+    });
+    var checkedCount = Object.keys(checked).length;
+    prog.textContent = checkedCount + ' / ' + list.length + ' 通過';
+    el.innerHTML = list.map(function(s, i) {
+      var c = checked[String(i)];
+      var color = r === '1' ? '#4f9cf9' : '#f97316';
+      return '<div class="cl-item' + (c ? ' checked' : '') + '">' +
+        '<div class="cl-check' + (c ? ' ok' : '') + '" style="' + (!c ? 'border-color:' + color : '') + '">' +
+        (c ? '✓' : (i+1)) + '</div>' +
+        '<span class="cl-name" style="' + (c ? 'text-decoration:line-through' : '') + '">' + s.name + '</span>' +
+        (c ? '<span class="cl-time">' + c.time + '</span>' : '') +
+        '</div>';
+    }).join('');
+  });
+}
+
+// ── 通過記録 ──────────────────────────────────────
+var recordFilter = 'all';
+var allRecordsData = null;
+
+function renderPassRecords(data) {
+  allRecordsData = data;
+  var el = document.getElementById('pass-records-list');
+  if (!data) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-hint);padding:8px 4px">まだ通過記録はありません</div>';
+    return;
+  }
+  var records = [];
+  Object.keys(data).forEach(function(busId) {
+    Object.keys(data[busId]).forEach(function(ts) {
+      records.push(data[busId][ts]);
+    });
+  });
+  records.sort(function(a, b) { return b.timestamp - a.timestamp; });
+  // フィルター適用
+  if (recordFilter === 'blue') {
+    records = records.filter(function(r) { return r.busName === '青バス'; });
+  } else if (recordFilter === 'yellow') {
+    records = records.filter(function(r) { return r.busName === '黄バス'; });
+  }
+  if (!records.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-hint);padding:8px 4px">記録がありません</div>';
+    return;
+  }
+  el.innerHTML = records.slice(0, 50).map(function(r) {
+    var color = r.busName === '青バス' ? '#4f9cf9' : '#fbbf24';
+    return '<div class="pass-record">' +
+      '<div class="pass-record-header">' +
+      '<span class="pass-record-bus" style="color:' + color + '">🚌 ' + r.busName + '</span>' +
+      '<span class="pass-record-time">' + r.time + '</span>' +
+      '</div>' +
+      '<div class="pass-record-stop" style="color:var(--text)">🚏 ' + r.stopName + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+document.getElementById('clear-records-btn').addEventListener('click', function() {
+  if (!confirm('通過記録をすべて削除しますか？')) return;
+  db.ref('pass_records').remove();
+  toast('通過記録を削除しました');
+});
+
+['all', 'blue', 'yellow'].forEach(function(f) {
+  document.getElementById('filter-' + f).addEventListener('click', function() {
+    recordFilter = f;
+    ['all', 'blue', 'yellow'].forEach(function(x) {
+      document.getElementById('filter-' + x).classList.toggle('active-filter', x === f);
+    });
+    renderPassRecords(allRecordsData);
+  });
+});
+
+// ── カスタムルート描画 ─────────────────────────────
+function renderCustomRoute(r) {
+  if (customRouteLines[r]) { map.removeLayer(customRouteLines[r]); customRouteLines[r] = null; }
+  customDotLayers[r].forEach(function(d) { map.removeLayer(d); });
+  customDotLayers[r] = [];
+  var pts = customRoutes[r] || [];
+  if (!routeVisible[r] || pts.length < 1) return;
+  pts.forEach(function(p) {
+    var dot = L.circleMarker([p[0], p[1]], {
+      radius: 4, color: ROUTE_COLOR[r], fillColor: ROUTE_COLOR[r], fillOpacity: 0.8, weight: 2
+    }).addTo(map);
+    customDotLayers[r].push(dot);
+  });
+  if (pts.length >= 2) {
+    customRouteLines[r] = L.polyline(pts, { color: ROUTE_COLOR[r], weight: 5, opacity: 0.75 }).addTo(map);
+  }
+}
+
+function startDraw(r) {
+  if (drawMode === r) { stopDraw(r); return; }
+  if (drawMode) stopDraw(drawMode);
+  drawMode = r;
+  editMode = false;
+  document.getElementById('edit-mode-btn').classList.remove('active');
+  document.getElementById('draw-r1-btn').classList.toggle('drawing', r === '1');
+  document.getElementById('draw-r2-btn').classList.toggle('drawing', r === '2');
+  var hint = document.getElementById('map-hint');
+  hint.textContent = '✏️ ' + routeNames[r] + ' を描画中… クリックで点を追加　完了はもう一度「描く」を押す';
+  hint.style.background = r === '1' ? 'rgba(26,90,180,0.92)' : 'rgba(120,90,0,0.92)';
+  hint.style.display = 'block';
+  map.getContainer().style.cursor = 'crosshair';
+}
+
+function stopDraw(r) {
+  drawMode = null;
+  document.getElementById('draw-r1-btn').classList.remove('drawing');
+  document.getElementById('draw-r2-btn').classList.remove('drawing');
+  document.getElementById('map-hint').style.display = 'none';
+  map.getContainer().style.cursor = '';
+  db.ref('config/customRoutes').set(customRoutes);
+  renderCustomRoute(r);
+  toast('💾 ルート' + r + 'を保存しました（' + (customRoutes[r]||[]).length + '点）');
+}
+
+// ── バス停 ────────────────────────────────────────
+function renderStops() {
+  ['1','2'].forEach(function(r) {
+    stopMarkerLayers[r].forEach(function(m) { map.removeLayer(m); });
+    stopMarkerLayers[r] = [];
+    if (routeLines[r]) { map.removeLayer(routeLines[r]); routeLines[r] = null; }
+    var list = stops[r] || [];
+    if (!routeVisible[r]) { renderCustomRoute(r); return; }
+    list.forEach(function(s, i) {
+      var m = L.marker([s.lat, s.lng], {
+        icon: L.divIcon({
+          className: '',
+          html: '<div style="width:24px;height:24px;border-radius:50%;background:' + ROUTE_COLOR[r] + ';border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,0.4);cursor:pointer">🚏</div>',
+          iconSize: [24,24], iconAnchor: [12,12]
+        })
+      }).addTo(map);
+      m.bindPopup('<div class="popup-title">🚏 ' + s.name + '</div><div class="popup-row"><span>ルート</span><span>' + routeNames[r] + '</span></div>' + (s.time ? '<div class="popup-row"><span>時刻</span><span>' + s.time + '</span></div>' : ''));
+      stopMarkerLayers[r].push(m);
+    });
+    renderCustomRoute(r);
+  });
+}
+
+function renderStopList(r) {
+  var el = document.getElementById('stops-r' + r);
+  if (!el) return;
+  var list = stops[r] || [];
+  if (!list.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-hint);padding:4px 6px">まだありません</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(s, i) {
+    return '<div class="stop-item" data-r="' + r + '" data-i="' + i + '">' +
+      '<div class="stop-dot" style="border-color:' + ROUTE_COLOR[r] + ';background:' + ROUTE_COLOR[r] + '33"></div>' +
+      '<span class="stop-name-text">' + s.name + '</span>' +
+      '<span class="stop-time-text">' + (s.time||'時刻未設定') + '</span>' +
+      '<button class="stop-edit" data-r="' + r + '" data-i="' + i + '" title="編集">✏️</button>' +
+      '<button class="stop-del" data-r="' + r + '" data-i="' + i + '" title="削除">✕</button>' +
+      '</div>';
+  }).join('');
+  el.querySelectorAll('.stop-item').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      if (e.target.classList.contains('stop-del') || e.target.classList.contains('stop-edit')) return;
+      var s = stops[row.dataset.r][row.dataset.i];
+      map.flyTo([s.lat, s.lng], 17, { duration: 0.8 });
+      stopMarkerLayers[row.dataset.r][parseInt(row.dataset.i)]&&stopMarkerLayers[row.dataset.r][parseInt(row.dataset.i)].openPopup();
+    });
+  });
+  el.querySelectorAll('.stop-edit').forEach(function(btn) {
+    btn.addEventListener('click', function() { openEditModal(btn.dataset.r, parseInt(btn.dataset.i)); });
+  });
+  el.querySelectorAll('.stop-del').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var r2 = btn.dataset.r, i = parseInt(btn.dataset.i);
+      if (!confirm('「' + stops[r2][i].name + '」を削除しますか？')) return;
+      stops[r2].splice(i, 1);
+      db.ref('config/stops').set(stops);
+      toast('バス停を削除しました');
+    });
+  });
+}
+
+function openEditModal(r, i) {
+  editTarget = { r: r, i: i };
+  var s = stops[r][i];
+  document.getElementById('edit-name-input').value = s.name;
+  document.getElementById('edit-time-input').value = s.time || '';
+  document.getElementById('edit-modal').classList.add('open');
+  setTimeout(function() { document.getElementById('edit-name-input').focus(); }, 100);
+}
+
+// ── 地図クリック ──────────────────────────────────
+map.on('click', function(e) {
+  if (drawMode) {
+    if (!customRoutes[drawMode]) customRoutes[drawMode] = [];
+    customRoutes[drawMode].push([e.latlng.lat, e.latlng.lng]);
+    renderCustomRoute(drawMode);
+    return;
+  }
+  if (!editMode) return;
+  // editModeをOFFにしてカーソルを戻す（1回クリックで1つ追加）
+  editMode = false;
+  document.getElementById('edit-mode-btn').classList.remove('active');
+  document.getElementById('map-hint').style.display = 'none';
+  map.getContainer().style.cursor = '';
+  pendingLatLng = e.latlng;
+  document.getElementById('stop-name-input').value = '';
+  document.getElementById('stop-time-input').value = '';
+  document.getElementById('stop-modal').classList.add('open');
+  setTimeout(function() { document.getElementById('stop-name-input').focus(); }, 100);
+});
+
+// ── ボタンイベント ────────────────────────────────
+document.getElementById('draw-r1-btn').addEventListener('click', function() { startDraw('1'); });
+document.getElementById('draw-r2-btn').addEventListener('click', function() { startDraw('2'); });
+
+document.getElementById('undo-r1-btn').addEventListener('click', function() {
+  if (!(customRoutes['1']||[]).length) return;
+  customRoutes['1'].pop();
+  db.ref('config/customRoutes').set(customRoutes);
+  renderCustomRoute('1');
+  toast('1点削除しました');
+});
+document.getElementById('undo-r2-btn').addEventListener('click', function() {
+  if (!(customRoutes['2']||[]).length) return;
+  customRoutes['2'].pop();
+  db.ref('config/customRoutes').set(customRoutes);
+  renderCustomRoute('2');
+  toast('1点削除しました');
+});
+document.getElementById('clear-r1-btn').addEventListener('click', function() {
+  if (!confirm('ルート1の描画をすべて消しますか？')) return;
+  customRoutes['1'] = [];
+  db.ref('config/customRoutes').set(customRoutes);
+  renderCustomRoute('1');
+  toast('ルート1を消しました');
+});
+document.getElementById('clear-r2-btn').addEventListener('click', function() {
+  if (!confirm('ルート2の描画をすべて消しますか？')) return;
+  customRoutes['2'] = [];
+  db.ref('config/customRoutes').set(customRoutes);
+  renderCustomRoute('2');
+  toast('ルート2を消しました');
+});
+
+document.getElementById('tog-r1').addEventListener('click', function() {
+  routeVisible['1'] = !routeVisible['1'];
+  document.getElementById('tog-r1').classList.toggle('on', routeVisible['1']);
+  renderStops();
+});
+document.getElementById('tog-r2').addEventListener('click', function() {
+  routeVisible['2'] = !routeVisible['2'];
+  document.getElementById('tog-r2').classList.toggle('on', routeVisible['2']);
+  renderStops();
+});
+
+document.getElementById('save-route-btn').addEventListener('click', function() {
+  routeNames['1'] = document.getElementById('r1-input').value.trim() || 'ルート1';
+  routeNames['2'] = document.getElementById('r2-input').value.trim() || 'ルート2';
+  db.ref('config/routeNames').set(routeNames);
+  document.getElementById('r1-label').textContent = routeNames['1'];
+  document.getElementById('r2-label').textContent = routeNames['2'];
+  toast('ルート名を保存しました');
+});
+
+document.getElementById('edit-mode-btn').addEventListener('click', function() {
+  if (drawMode) stopDraw(drawMode);
+  editMode = !editMode;
+  document.getElementById('edit-mode-btn').classList.toggle('active', editMode);
+  var hint = document.getElementById('map-hint');
+  if (editMode) {
+    hint.textContent = '📍 バス停を置く場所をクリックしてください　もう一度押すとキャンセル';
+    hint.style.background = 'rgba(26,95,180,0.92)';
+    hint.style.display = 'block';
+    switchTab('stops');
+    map.getContainer().style.cursor = 'crosshair';
+    toast('地図をクリックしてバス停を追加してください');
+  } else {
+    hint.style.display = 'none';
+    map.getContainer().style.cursor = '';
+  }
+});
+
+document.getElementById('modal-ok').addEventListener('click', function() {
+  var name = document.getElementById('stop-name-input').value.trim();
+  if (!name) { document.getElementById('stop-name-input').focus(); return; }
+  if (!pendingLatLng) { toast('⚠️ 地図をクリックして場所を選んでください'); return; }
+  var r = document.getElementById('stop-route-sel').value;
+  var time = document.getElementById('stop-time-input').value;
+  // stopsが配列でない場合（Firebaseからオブジェクトで返ってきた場合）も対応
+  if (!stops[r] || !Array.isArray(stops[r])) stops[r] = [];
+  stops[r].push({ name: name, lat: pendingLatLng.lat, lng: pendingLatLng.lng, time: time });
+  var savedName = name, savedR = r;
+  document.getElementById('stop-modal').classList.remove('open');
+  pendingLatLng = null;
+  // 即座にマーカーを描画（Firebaseの反映を待たない）
+  renderStops();
+  renderStopList('1');
+  renderStopList('2');
+  db.ref('config/stops').set(stops).then(function() {
+    toast('🚏 ' + savedName + ' を追加しました（ルート' + savedR + '）');
+  }).catch(function(e) {
+    toast('❌ 保存エラー: ' + e.message);
+  });
+});
+document.getElementById('modal-cancel').addEventListener('click', function() {
+  document.getElementById('stop-modal').classList.remove('open');
+  pendingLatLng = null;
+  // キャンセル時もeditModeをリセット
+  editMode = false;
+  document.getElementById('edit-mode-btn').classList.remove('active');
+  document.getElementById('map-hint').style.display = 'none';
+  map.getContainer().style.cursor = '';
+});
+
+document.getElementById('edit-ok').addEventListener('click', function() {
+  if (!editTarget) return;
+  var name = document.getElementById('edit-name-input').value.trim();
+  if (!name) { document.getElementById('edit-name-input').focus(); return; }
+  var time = document.getElementById('edit-time-input').value;
+  stops[editTarget.r][editTarget.i].name = name;
+  stops[editTarget.r][editTarget.i].time = time;
+  db.ref('config/stops').set(stops);
+  document.getElementById('edit-modal').classList.remove('open');
+  editTarget = null;
+  toast('🚏 バス停を更新しました');
+});
+document.getElementById('edit-cancel').addEventListener('click', function() {
+  document.getElementById('edit-modal').classList.remove('open');
+  editTarget = null;
+});
+
+// ── タブ ──────────────────────────────────────────
+function switchTab(name) {
+  ['buses','routes','stops','records'].forEach(function(t) {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('ptab-' + t).classList.toggle('active', t === name);
+  });
+}
+document.getElementById('ptab-buses').addEventListener('click', function() { switchTab('buses'); });
+document.getElementById('ptab-routes').addEventListener('click', function() { switchTab('routes'); });
+document.getElementById('ptab-stops').addEventListener('click', function() { switchTab('stops'); });
+document.getElementById('ptab-records').addEventListener('click', function() { switchTab('records'); });
+document.getElementById('ptab-checklist').addEventListener('click', function() { switchTab('checklist'); });
+
+document.getElementById('fit-btn').addEventListener('click', function() {
+  var ids = Object.keys(buses);
+  if (!ids.length) return;
+  map.fitBounds(L.latLngBounds(ids.map(function(id) { return [buses[id].lat, buses[id].lng]; })).pad(0.3));
+});
+document.getElementById('reset-btn').addEventListener('click', function() { map.flyTo(NAGOYA, 13); });
+
+function setConnected(ok) {
+  document.getElementById('conn-status').className = 'status-pill' + (ok ? ' connected' : '');
+  document.getElementById('conn-text').textContent = ok ? 'Firebase接続中' : '接続待機中';
+}
+function fmt(ts) {
+  if (!ts) return '―';
+  return new Date(ts).toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(function() { el.classList.remove('show'); }, 3500);
+}
+setInterval(function() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('ja-JP');
+}, 1000);
+setInterval(function() { refreshBusList(); refreshBottomBar(); }, 5000);
+
+// Firebaseのセキュリティルール更新も必要なのでconfig pathを追加
+db.ref('config/stops').once('value').then(function(snap) {
+  if (!snap.val()) db.ref('config/stops').set({'1':[],'2':[]});
+});
+</script>
+</body>
+</html>
