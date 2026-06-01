@@ -5,6 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>バス運行管理｜管理者画面</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var PW = '1749';
+  function unlock() {
+    var s = document.getElementById('pw-screen');
+    if (s) s.style.display = 'none';
+    sessionStorage.setItem('ctb_auth', '1');
+  }
+  if (sessionStorage.getItem('ctb_auth') === '1') { unlock(); return; }
+  var btn = document.getElementById('pw-btn');
+  var inp = document.getElementById('pw-input');
+  var err = document.getElementById('pw-error');
+  if (btn) btn.addEventListener('click', function() {
+    if (inp.value === PW) { unlock(); }
+    else {
+      if (err) err.textContent = 'パスワードが違います';
+      inp.value = '';
+      inp.focus();
+    }
+  });
+  if (inp) inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && btn) btn.click();
+  });
+});
+</script>
 <style>
 /* ── パスワード画面 ── */
 #pw-screen{position:fixed;inset:0;background:#0f1117;display:flex;align-items:center;justify-content:center;z-index:99999}
@@ -16,7 +41,7 @@
 #pw-btn{width:100%;margin-top:12px;padding:12px;border-radius:8px;background:#4f9cf9;color:#fff;border:none;font-size:15px;font-weight:600;cursor:pointer}
 #pw-btn:hover{background:#3a8ae8}
 #pw-error{color:#f87171;font-size:13px;margin-top:10px;min-height:18px}
-</style>
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#0f1117;--surface:#181b24;--surface2:#1e2233;--surface3:#252a3a;
@@ -204,32 +229,6 @@ select.form-input{appearance:auto;-webkit-appearance:auto;cursor:pointer;color-s
     <div id="pw-error"></div>
   </div>
 </div>
-<style>
-#password-screen{position:fixed;inset:0;background:#1a1a2e;display:flex;align-items:center;
-  justify-content:center;z-index:99999;flex-direction:column;gap:16px}
-#password-screen.hidden{display:none}
-.pw-card{background:#16213e;border:0.5px solid #0f3460;border-radius:16px;padding:32px 28px;
-  width:280px;text-align:center}
-.pw-logo{font-size:48px;margin-bottom:8px}
-.pw-title{color:#e2e8f0;font-size:18px;font-weight:600;margin-bottom:4px}
-.pw-sub{color:#94a3b8;font-size:13px;margin-bottom:20px}
-.pw-input{width:100%;padding:12px;border-radius:10px;border:1px solid #0f3460;
-  background:#0f3460;color:#e2e8f0;font-size:18px;text-align:center;letter-spacing:4px;
-  outline:none;box-sizing:border-box}
-.pw-btn{width:100%;padding:12px;border-radius:10px;border:none;background:#4f9cf9;
-  color:#fff;font-size:15px;font-weight:600;cursor:pointer;margin-top:10px}
-.pw-error{color:#f87171;font-size:12px;margin-top:8px;display:none}
-</style>
-<div id="password-screen">
-  <div class="pw-card">
-    <div class="pw-logo">🚌</div>
-    <div class="pw-title">Catch the Bus</div>
-    <div class="pw-sub">パスワードを入力してください</div>
-    <input class="pw-input" type="password" id="pw-input" placeholder="●●●●" maxlength="20">
-    <button id="pw-btn">ログイン</button>
-    <div class="pw-error" id="pw-error">パスワードが違います</div>
-  </div>
-</div>
 <header>
   <div class="logo">
     <div class="logo-icon">🚌</div>
@@ -389,29 +388,7 @@ select.form-input{appearance:auto;-webkit-appearance:auto;cursor:pointer;color-s
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.js"></script>
-<script>
-// ── パスワード認証（Firebase読み込み前に独立実行）──
-(function() {
-  var PW = '1749';
-  function unlock() {
-    document.getElementById('pw-screen').style.display = 'none';
-    sessionStorage.setItem('ctb_auth', '1');
-  }
-  if (sessionStorage.getItem('ctb_auth') === '1') { unlock(); }
-  document.getElementById('pw-btn').addEventListener('click', function() {
-    var v = document.getElementById('pw-input').value;
-    if (v === PW) { unlock(); }
-    else {
-      document.getElementById('pw-error').textContent = 'パスワードが違います';
-      document.getElementById('pw-input').value = '';
-      document.getElementById('pw-input').focus();
-    }
-  });
-  document.getElementById('pw-input').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') document.getElementById('pw-btn').click();
-  });
-})();
-</script>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
