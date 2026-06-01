@@ -230,29 +230,6 @@ select.form-input{appearance:auto;-webkit-appearance:auto;cursor:pointer;color-s
     <div class="pw-error" id="pw-error">パスワードが違います</div>
   </div>
 </div>
-<script>
-(function() {
-  var PW = '1749';
-  function unlock() {
-    document.getElementById('pw-screen').style.display = 'none';
-    sessionStorage.setItem('ctb_auth', '1');
-  }
-  if (sessionStorage.getItem('ctb_auth') === '1') { unlock(); return; }
-  document.getElementById('pw-btn').addEventListener('click', function() {
-    var v = document.getElementById('pw-input').value;
-    if (v === PW) { unlock(); }
-    else {
-      document.getElementById('pw-error').textContent = 'パスワードが違います';
-      document.getElementById('pw-input').value = '';
-      document.getElementById('pw-input').focus();
-    }
-  });
-  document.getElementById('pw-input').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') document.getElementById('pw-btn').click();
-  });
-})();
-</script>
-
 <header>
   <div class="logo">
     <div class="logo-icon">🚌</div>
@@ -415,6 +392,28 @@ select.form-input{appearance:auto;-webkit-appearance:auto;cursor:pointer;color-s
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
+// ── パスワード認証 ──────────────────────────────
+(function() {
+  var PW = '1749';
+  function unlock() {
+    document.getElementById('pw-screen').style.display = 'none';
+    sessionStorage.setItem('ctb_auth', '1');
+  }
+  if (sessionStorage.getItem('ctb_auth') === '1') { unlock(); }
+  document.getElementById('pw-btn').addEventListener('click', function() {
+    var v = document.getElementById('pw-input').value;
+    if (v === PW) { unlock(); }
+    else {
+      document.getElementById('pw-error').textContent = 'パスワードが違います';
+      document.getElementById('pw-input').value = '';
+      document.getElementById('pw-input').focus();
+    }
+  });
+  document.getElementById('pw-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('pw-btn').click();
+  });
+})();
+
 firebase.initializeApp({
   apiKey: "AIzaSyAQ233V2MARq5kweD0tL0cIPQA7ffkCxuo",
   authDomain: "catch-the-bus-7de42.firebaseapp.com",
