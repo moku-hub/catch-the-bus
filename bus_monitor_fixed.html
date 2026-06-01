@@ -389,10 +389,8 @@ select.form-input{appearance:auto;-webkit-appearance:auto;cursor:pointer;color-s
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
-// ── パスワード認証 ──────────────────────────────
+// ── パスワード認証（Firebase読み込み前に独立実行）──
 (function() {
   var PW = '1749';
   function unlock() {
@@ -413,7 +411,10 @@ select.form-input{appearance:auto;-webkit-appearance:auto;cursor:pointer;color-s
     if (e.key === 'Enter') document.getElementById('pw-btn').click();
   });
 })();
-
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
 firebase.initializeApp({
   apiKey: "AIzaSyAQ233V2MARq5kweD0tL0cIPQA7ffkCxuo",
   authDomain: "catch-the-bus-7de42.firebaseapp.com",
