@@ -227,6 +227,13 @@ body {
       <div class="top-title">バス運行情報</div>
       <div style="display:flex;gap:8px;align-items:center">
         <div class="top-num" id="display-num"></div>
+        <div style="position:relative;display:inline-block" id="pw-btn-wrap">
+          <button onclick="showPwChange()" onmouseenter="document.getElementById('pw-tooltip').style.opacity='1'" onmouseleave="document.getElementById('pw-tooltip').style.opacity='0'" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.3);border-radius:10px;padding:5px 10px;font-size:20px;cursor:pointer;line-height:1">🔑</button>
+          <div id="pw-tooltip" style="opacity:0;transition:opacity 0.2s;position:absolute;bottom:-38px;left:50%;transform:translateX(-50%);background:#1e3a5f;color:#fff;font-size:12px;font-weight:600;padding:5px 10px;border-radius:8px;white-space:nowrap;pointer-events:none;z-index:200">
+            パスワードの変更
+            <div style="position:absolute;top:-5px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:5px solid #1e3a5f"></div>
+          </div>
+        </div>
         <button class="logout-btn" onclick="logout()">ログアウト</button>
       </div>
     </div>
@@ -245,6 +252,22 @@ body {
     <!-- バス情報 -->
     <div id="bus-info-area"></div>
 
+  </div>
+</div>
+
+<!-- パスワード変更モーダル -->
+<div id="pw-change-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9998;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:24px;padding:28px 24px;width:min(340px,100%);box-shadow:0 12px 48px rgba(0,0,0,0.2)">
+    <div style="font-size:18px;font-weight:800;margin-bottom:6px">🔑 パスワード変更</div>
+    <div style="font-size:13px;color:#6b8cae;margin-bottom:20px">新しいパスワードを設定してください</div>
+    <input id="pw-current" type="password" placeholder="現在のパスワード" style="width:100%;padding:12px 14px;border:1.5px solid rgba(74,144,217,0.18);border-radius:12px;font-size:15px;font-family:inherit;background:#eef6ff;color:#1e3a5f;outline:none;margin-bottom:10px;box-sizing:border-box">
+    <input id="pw-new1" type="password" placeholder="新しいパスワード" style="width:100%;padding:12px 14px;border:1.5px solid rgba(74,144,217,0.18);border-radius:12px;font-size:15px;font-family:inherit;background:#eef6ff;color:#1e3a5f;outline:none;margin-bottom:10px;box-sizing:border-box">
+    <input id="pw-new2" type="password" placeholder="新しいパスワード（確認）" style="width:100%;padding:12px 14px;border:1.5px solid rgba(74,144,217,0.18);border-radius:12px;font-size:15px;font-family:inherit;background:#eef6ff;color:#1e3a5f;outline:none;margin-bottom:6px;box-sizing:border-box">
+    <div id="pw-change-error" style="color:#f87171;font-size:12px;min-height:18px;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="hidePwChange()" style="flex:1;padding:12px;border:1.5px solid rgba(74,144,217,0.18);border-radius:12px;background:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;color:#6b8cae">キャンセル</button>
+      <button onclick="changePw()" style="flex:1;padding:12px;background:linear-gradient(135deg,#4a90d9,#2176c7);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer">変更する</button>
+    </div>
   </div>
 </div>
 
@@ -283,8 +306,8 @@ let unsubscribes = [];
 //  ログイン
 // ══════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  const saved = sessionStorage.getItem('ctb_parent');
-  if (saved) { currentUser = JSON.parse(saved); startListening(); showMain(); }
+  const saved = sessionStorage.getItem('ctb_parent') || localStorage.getItem('ctb_parent');
+  if (saved) { currentUser = JSON.parse(saved); sessionStorage.setItem('ctb_parent', saved); startListening(); showMain(); }
 
   document.getElementById('login-pw').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
   document.getElementById('login-btn').addEventListener('click', doLogin);
@@ -307,6 +330,17 @@ function doLogin() {
     sessionStorage.setItem('ctb_parent', JSON.stringify(currentUser));
     startListening();
     showMain();
+    // 自動ログインの確認
+    if (!localStorage.getItem('ctb_parent_auto')) {
+      setTimeout(() => {
+        if (confirm('次回から自動でログインしますか？\nログアウトボタンを押すまでログイン状態が続きます。')) {
+          localStorage.setItem('ctb_parent', JSON.stringify(currentUser));
+          localStorage.setItem('ctb_parent_auto', '1');
+        }
+      }, 500);
+    } else {
+      localStorage.setItem('ctb_parent', JSON.stringify(currentUser));
+    }
   }).catch(() => {
     err.textContent = 'エラーが発生しました。再度お試しください';
   });
@@ -320,6 +354,8 @@ function showMain() {
 
 function logout() {
   sessionStorage.removeItem('ctb_parent');
+  localStorage.removeItem('ctb_parent');
+  localStorage.removeItem('ctb_parent_auto');
   unsubscribes.forEach(fn => fn());
   location.reload();
 }
@@ -540,6 +576,46 @@ function playSound() {
       osc.stop(ctx.currentTime + i * 0.15 + 0.3);
     });
   } catch(e) {}
+}
+
+function showPwChange() {
+  document.getElementById('pw-change-modal').style.display = 'flex';
+  document.getElementById('pw-current').value = '';
+  document.getElementById('pw-new1').value = '';
+  document.getElementById('pw-new2').value = '';
+  document.getElementById('pw-change-error').textContent = '';
+}
+
+function hidePwChange() {
+  document.getElementById('pw-change-modal').style.display = 'none';
+}
+
+function changePw() {
+  const current = document.getElementById('pw-current').value;
+  const new1 = document.getElementById('pw-new1').value;
+  const new2 = document.getElementById('pw-new2').value;
+  const err = document.getElementById('pw-change-error');
+
+  if (!current || !new1 || !new2) { err.textContent = 'すべて入力してください'; return; }
+  if (new1 !== new2) { err.textContent = '新しいパスワードが一致しません'; return; }
+  if (new1.length < 4) { err.textContent = 'パスワードは4文字以上にしてください'; return; }
+
+  // 現在のパスワードを確認
+  db.ref('config/parents/' + currentUser.num).once('value').then(snap => {
+    const data = snap.val();
+    if (!data || data.pw !== current) {
+      err.textContent = '現在のパスワードが違います';
+      return;
+    }
+    // 新しいパスワードを保存
+    db.ref('config/parents/' + currentUser.num + '/pw').set(new1).then(() => {
+      // localStorageのパスワードも更新
+      localStorage.removeItem('ctb_parent');
+      localStorage.removeItem('ctb_parent_auto');
+      hidePwChange();
+      showToast('✅ パスワードを変更しました');
+    });
+  });
 }
 
 function showToast(msg) {
