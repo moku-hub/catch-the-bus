@@ -211,8 +211,8 @@ body {
   <div class="login-card">
     <div class="login-logo">🚌</div>
     <div class="login-brand">Catch the Bus</div>
-    <div class="login-sub">保護者向けバス情報</div>
-    <input class="login-field" type="number" id="login-num" placeholder="園児番号" min="1" max="9999">
+    <div class="login-sub">バス運行情報</div>
+    <input class="login-field" type="number" id="login-num" placeholder="乗車番号" min="1" max="9999">
     <input class="login-field" type="password" id="login-pw" placeholder="パスワード">
     <button class="login-btn" id="login-btn">ログイン</button>
     <div class="login-error" id="login-error"></div>
@@ -294,7 +294,7 @@ function doLogin() {
   const num = document.getElementById('login-num').value.trim();
   const pw = document.getElementById('login-pw').value;
   const err = document.getElementById('login-error');
-  if (!num) { err.textContent = '園児番号を入力してください'; return; }
+  if (!num) { err.textContent = '乗車番号を入力してください'; return; }
 
   // Firebaseから保護者情報を取得
   db.ref('config/parents/' + num).once('value').then(snap => {
