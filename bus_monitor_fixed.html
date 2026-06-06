@@ -75,10 +75,11 @@ header{height:52px;min-height:52px;background:var(--surface);border-bottom:0.5px
 .header-btn:hover{background:var(--surface3)}
 .header-btn.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
 .main-layout{display:flex;flex:1;overflow:hidden}
-.side-panel{width:268px;min-width:268px;background:var(--surface);
+.side-panel{width:300px;min-width:300px;background:var(--surface);
   border-right:0.5px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-.panel-tabs{display:flex;border-bottom:0.5px solid var(--border)}
-.panel-tab{flex:1;padding:10px;font-size:12px;text-align:center;cursor:pointer;
+.panel-tabs{display:flex;border-bottom:0.5px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.panel-tabs::-webkit-scrollbar{display:none}
+.panel-tab{flex:1;padding:8px 6px;font-size:11px;text-align:center;cursor:pointer;
   color:var(--text-muted);border:none;background:none;font-family:inherit;
   border-bottom:2px solid transparent;transition:all 0.15s}
 .panel-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
@@ -241,7 +242,8 @@ select.form-input{appearance:auto;-webkit-appearance:auto;cursor:pointer;color-s
 </header>
 
 <div class="main-layout">
-  <div class="side-panel">
+  <div class="side-panel" style="display:flex;flex-direction:column">
+    <button onclick="toggleParentPanel()" style="margin:8px;padding:8px;background:linear-gradient(135deg,#4a90d9,#2176c7);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0">👨‍👩‍👧 保護者設定・運行状況</button>
     <div class="panel-tabs">
       <button class="panel-tab active" id="ptab-buses">🚌 バス</button>
       <button class="panel-tab" id="ptab-routes">🗺️ ルート</button>
@@ -331,6 +333,49 @@ select.form-input{appearance:auto;-webkit-appearance:auto;cursor:pointer;color-s
         </div>
         <div id="cl-r2"></div>
       </div>
+    </div>
+    <div id="tab-parent" style="display:none;overflow-y:auto;padding:8px;flex-shrink:0;border-top:0.5px solid var(--border);max-height:60vh">
+      <!-- 運行状況設定 -->
+      <div style="padding:8px 4px;margin-bottom:8px">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">本日の運行状況</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <button class="op-set-btn" onclick="setOperation('normal')" style="flex:1;padding:8px 4px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--green)">✅ 通常運行</button>
+          <button class="op-set-btn" onclick="setOperation('half')" style="flex:1;padding:8px 4px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--amber)">⚠️ 半日運行</button>
+          <button class="op-set-btn" onclick="setOperation('cancel')" style="flex:1;padding:8px 4px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface2);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:#f87171">❌ 運休</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <input id="op-message" type="text" placeholder="補足メッセージ（任意）" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--surface2);color:var(--text);outline:none">
+          <button onclick="updateOpMessage()" style="padding:8px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">更新</button>
+        </div>
+        <div id="op-current" style="font-size:11px;color:var(--text-muted);text-align:center"></div>
+      </div>
+      <div style="border-top:0.5px solid var(--border);margin:0 -8px 8px"></div>
+      <!-- 保護者登録 -->
+      <div style="font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:0.05em;padding:0 4px;margin-bottom:8px">保護者登録</div>
+      <div style="padding:0 4px">
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <input type="number" id="p-num" placeholder="園児番号" min="1" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--surface2);color:var(--text);outline:none">
+          <input type="password" id="p-pw" placeholder="パスワード" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--surface2);color:var(--text);outline:none">
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <select id="p-bus" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--surface2);color:var(--text);outline:none;appearance:auto">
+            <option value="blue">🔵 青バス</option>
+            <option value="yellow">🟡 黄バス</option>
+          </select>
+          <select id="p-route" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--surface2);color:var(--text);outline:none;appearance:auto">
+            <option value="1">ルート1</option>
+            <option value="2">ルート2</option>
+          </select>
+        </div>
+        <select id="p-stop" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--surface2);color:var(--text);outline:none;appearance:auto;margin-bottom:6px">
+          <option value="">バス停を選択</option>
+        </select>
+        <button onclick="registerParent()" style="width:100%;padding:8px;background:linear-gradient(135deg,#4a90d9,#2176c7);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">➕ 保護者を登録</button>
+      </div>
+      <div style="border-top:0.5px solid var(--border);margin:8px -8px"></div>
+      <!-- 登録済み一覧 -->
+      <div style="font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:0.05em;padding:0 4px;margin-bottom:6px">登録済み保護者</div>
+      <div id="parent-list" style="padding:0 4px"></div>
     </div>
   </div>
 
@@ -1033,6 +1078,132 @@ setInterval(function() { refreshBusList(); refreshBottomBar(); }, 5000);
 db.ref('config/stops').once('value').then(function(snap) {
   if (!snap.val()) db.ref('config/stops').set({'1':[],'2':[]});
 });
+
+// ══════════════════════════════
+//  保護者パネル開閉
+// ══════════════════════════════
+function toggleParentPanel() {
+  var el = document.getElementById('tab-parent');
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    renderParentList();
+    updateParentStopSel();
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ══════════════════════════════
+//  運行状況管理
+// ══════════════════════════════
+db.ref('config/operation').on('value', function(snap) {
+  var data = snap.val();
+  var el = document.getElementById('op-current');
+  if (!el) return;
+  if (!data) { el.textContent = '現在の設定：未設定'; return; }
+  var labels = { normal:'通常運行', half:'半日運行', cancel:'運休' };
+  el.textContent = '現在：' + (labels[data.status] || data.status) + (data.message ? '　' + data.message : '');
+});
+
+function updateOpMessage() {
+  var msg = document.getElementById('op-message').value.trim();
+  db.ref('config/operation/message').set(msg).then(function() {
+    toast('✅ メモを更新しました');
+  });
+}
+
+function setOperation(status) {
+  var msg = document.getElementById('op-message').value.trim();
+  db.ref('config/operation').set({ status: status, message: msg, updatedAt: Date.now() }).then(function() {
+    var labels = { normal:'通常運行', half:'半日運行', cancel:'運休' };
+    toast('✅ ' + labels[status] + ' に設定しました');
+  });
+}
+
+// ══════════════════════════════
+//  保護者登録
+// ══════════════════════════════
+// バス停選択肢を動的に更新
+document.getElementById('p-route') && document.getElementById('p-route').addEventListener('change', updateParentStopSel);
+
+function updateParentStopSel() {
+  var routeEl = document.getElementById('p-route');
+  var stopEl = document.getElementById('p-stop');
+  if (!routeEl || !stopEl) return;
+  var r = routeEl.value;
+  var list = stops[r] || [];
+  stopEl.innerHTML = '<option value="">バス停を選択</option>' +
+    list.map(function(s, i) { return '<option value="' + i + '">' + (i+1) + '. ' + s.name + '</option>'; }).join('');
+}
+
+function registerParent() {
+  var num = document.getElementById('p-num').value.trim();
+  var pw = document.getElementById('p-pw').value.trim();
+  var bus = document.getElementById('p-bus').value;
+  var route = document.getElementById('p-route').value;
+  var stopIdx = document.getElementById('p-stop').value;
+  if (!num || !pw) { toast('番号とパスワードを入力してください'); return; }
+  if (stopIdx === '') { toast('バス停を選択してください'); return; }
+  db.ref('config/parents/' + num).set({
+    pw: pw, busColor: bus, routeId: route, stopIndex: parseInt(stopIdx)
+  }).then(function() {
+    toast('✅ No.' + String(num).padStart(3,'0') + ' を登録しました');
+    document.getElementById('p-num').value = '';
+    document.getElementById('p-pw').value = '';
+    renderParentList();
+  });
+}
+
+function renderParentList() {
+  var el = document.getElementById('parent-list');
+  if (!el) return;
+  db.ref('config/parents').once('value').then(function(snap) {
+    var data = snap.val();
+    if (!data) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--text-hint);padding:8px 0">登録なし</div>';
+      return;
+    }
+    var nums = Object.keys(data).sort(function(a,b){return Number(a)-Number(b);});
+    var table = document.createElement('table');
+    table.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px';
+    table.innerHTML = '<thead><tr style="color:var(--text-muted)">' +
+      '<th style="padding:4px;text-align:left">番号</th>' +
+      '<th style="padding:4px;text-align:left">バス</th>' +
+      '<th style="padding:4px;text-align:left">バス停</th>' +
+      '<th style="padding:4px"></th></tr></thead>';
+    var tbody = document.createElement('tbody');
+    nums.forEach(function(num) {
+      var p = data[num];
+      var stopObj = (stops[p.routeId] || [])[p.stopIndex];
+      var stopName = stopObj ? stopObj.name : '?';
+      var tr = document.createElement('tr');
+      tr.style.borderTop = '0.5px solid var(--border)';
+      tr.innerHTML = '<td style="padding:4px">No.' + String(num).padStart(3,'0') + '</td>' +
+        '<td style="padding:4px">' + (p.busColor==='blue'?'🔵':'🟡') + '</td>' +
+        '<td style="padding:4px">' + stopName + '</td>';
+      var td = document.createElement('td');
+      td.style.padding = '4px';
+      var btn = document.createElement('button');
+      btn.textContent = '🗑';
+      btn.style.cssText = 'background:none;border:none;color:#f87171;cursor:pointer;font-size:13px';
+      btn.addEventListener('click', (function(n){ return function(){ deleteParent(n); }; })(num));
+      td.appendChild(btn);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    el.innerHTML = '';
+    el.appendChild(table);
+  });
+}
+
+function deleteParent(num) {
+  if (!confirm('No.' + String(num).padStart(3,'0') + ' を削除しますか？')) return;
+  db.ref('config/parents/' + num).remove().then(function() {
+    toast('削除しました');
+    renderParentList();
+  });
+}
 </script>
 </body>
 </html>

@@ -371,6 +371,7 @@ document.getElementById('stop-btn').addEventListener('click', function() {
 
   db.ref('buses/' + busId).remove();
   db.ref('bus_checklist/' + busId).remove();
+  db.ref('pass_records/' + busId).remove();
   clearSession();
   passedStops = [];
   notifiedStops.clear();
