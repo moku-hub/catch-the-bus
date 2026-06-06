@@ -273,8 +273,14 @@ let routeNames = { '1': 'ルート1', '2': 'ルート2' };
 db.ref('config/stops').on('value', function(snap) {
   var data = snap.val();
   if (data) {
-    stops['1'] = data['1'] ? Object.values(data['1']) : [];
-    stops['2'] = data['2'] ? Object.values(data['2']) : [];
+    // Firebaseはarrayをobjectで返すのでindexの順番を保証して変換
+    function toOrderedArray(obj) {
+      if (!obj) return [];
+      if (Array.isArray(obj)) return obj;
+      return Object.keys(obj).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){return obj[k];});
+    }
+    stops['1'] = toOrderedArray(data['1']);
+    stops['2'] = toOrderedArray(data['2']);
   } else {
     stops['1'] = []; stops['2'] = [];
   }
@@ -321,6 +327,9 @@ document.getElementById('start-btn').addEventListener('click', function() {
   passedStops = [];
   notifiedStops.clear();
   db.ref('bus_checklist/' + busId).remove();
+  // 運行開始と同時に「出発」を記録
+  const startNow = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  passedStops.push({name: '🚌 出発', time: startNow, route: document.getElementById('bus-route-sel').value, isDepart: true});
   saveSession();
   renderStopChecklist();
 
@@ -409,6 +418,10 @@ function checkNearbyStops(lat, lng) {
     notifiedStops.add(key);
     const now = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
     passedStops.push({name: s.name, time: now, route: r});
+    // 最後のバス停なら「到着」を追加
+    if (nextIndex === list.length - 1) {
+      passedStops.push({name: '🏁 到着', time: now, route: r, isArrive: true});
+    }
     renderStopChecklist();
     sendPassRecord(s.name, now);
     notifyStop(s.name, dist);
@@ -457,13 +470,28 @@ function renderStopChecklist() {
     prog.textContent = '';
     return;
   }
-  const checked = passedStops.length;
+  const realPassed = passedStops.filter(function(x){return !x.isDepart && !x.isArrive;});
+  const checked = realPassed.length;
   prog.textContent = checked + ' / ' + list.length + ' 通過';
   const color = ROUTE_COLOR[r];
-  el.innerHTML = list.map(function(s, i) {
+  const depart = passedStops.find(function(x){return x.isDepart;});
+  const arrive = passedStops.find(function(x){return x.isArrive;});
+
+  var html = '';
+  // 出発バナー
+  if (depart) {
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;margin-bottom:4px;' +
+      'background:rgba(74,144,217,0.1);border-radius:10px;font-size:13px;font-weight:700;color:' + color + '">' +
+      '<span style="font-size:18px">🚌</span>' +
+      '<span>出発</span>' +
+      '<span style="margin-left:auto;font-size:12px;font-weight:500;color:var(--text-muted)">' + depart.time + '</span>' +
+      '</div>';
+  }
+
+  html += list.map(function(s, i) {
     const key = r + '_' + i;
     const passed = notifiedStops.has(key);
-    const p = passedStops.find(function(x) { return x.name === s.name; });
+    const p = passedStops.find(function(x) { return x.name === s.name && !x.isDepart && !x.isArrive; });
     return '<div class="stop-check-item' + (passed ? ' passed' : '') + '" id="check-item-' + i + '">' +
       '<div class="check-circle' + (passed ? ' checked' : '') + '" style="' + (!passed ? 'border-color:' + color : '') + '">' +
       (passed ? '✓' : (i + 1)) + '</div>' +
@@ -474,6 +502,18 @@ function renderStopChecklist() {
       (passed && p ? '<span class="stop-check-time">' + p.time + '</span>' : '<span class="stop-check-dist" id="dist-' + i + '"></span>') +
       '</div>';
   }).join('');
+
+  // 到着バナー
+  if (arrive) {
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 4px;margin-top:4px;' +
+      'background:rgba(106,176,76,0.12);border-radius:10px;font-size:13px;font-weight:700;color:#4a9e2f">' +
+      '<span style="font-size:18px">🏁</span>' +
+      '<span>到着</span>' +
+      '<span style="margin-left:auto;font-size:12px;font-weight:500;color:var(--text-muted)">' + arrive.time + '</span>' +
+      '</div>';
+  }
+
+  el.innerHTML = html;
 }
 
 function doSend() {
