@@ -125,14 +125,27 @@ main{flex:1;padding:14px;display:flex;flex-direction:column;gap:12px;max-width:5
 <script>
 function checkPassword() {
   var input = document.getElementById('pw-input').value;
-  if (input === '1749') {
-    document.getElementById('password-screen').classList.add('hidden');
-    sessionStorage.setItem('ctb_auth', '1');
-  } else {
-    document.getElementById('pw-error').style.display = 'block';
-    document.getElementById('pw-input').value = '';
-    document.getElementById('pw-input').focus();
-  }
+  var DEFAULT_PW = '1749';
+  db.ref('config/passwords/ipad').once('value').then(function(snap) {
+    var PW = snap.val() || DEFAULT_PW;
+    if (input === PW) {
+      document.getElementById('password-screen').classList.add('hidden');
+      sessionStorage.setItem('ctb_auth', '1');
+    } else {
+      document.getElementById('pw-error').style.display = 'block';
+      document.getElementById('pw-input').value = '';
+      document.getElementById('pw-input').focus();
+    }
+  }).catch(function() {
+    if (input === DEFAULT_PW) {
+      document.getElementById('password-screen').classList.add('hidden');
+      sessionStorage.setItem('ctb_auth', '1');
+    } else {
+      document.getElementById('pw-error').style.display = 'block';
+      document.getElementById('pw-input').value = '';
+      document.getElementById('pw-input').focus();
+    }
+  });
 }
 document.getElementById('pw-input').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') checkPassword();

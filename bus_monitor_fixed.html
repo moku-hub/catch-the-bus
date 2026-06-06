@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  var PW = '1749';
+  var DEFAULT_PW = '1749';
   function unlock() {
     var s = document.getElementById('pw-screen');
     if (s) s.style.display = 'none';
@@ -17,16 +17,29 @@ document.addEventListener('DOMContentLoaded', function() {
   var btn = document.getElementById('pw-btn');
   var inp = document.getElementById('pw-input');
   var err = document.getElementById('pw-error');
-  if (btn) btn.addEventListener('click', function() {
-    if (inp.value === PW) { unlock(); }
-    else {
-      if (err) err.textContent = 'パスワードが違います';
-      inp.value = '';
-      inp.focus();
-    }
-  });
+  function tryLogin() {
+    // Firebaseからパスワードを取得して照合
+    firebase.database().ref('config/passwords/monitor').once('value').then(function(snap) {
+      var PW = snap.val() || DEFAULT_PW;
+      if (inp.value === PW) { unlock(); }
+      else {
+        if (err) err.textContent = 'パスワードが違います';
+        inp.value = '';
+        inp.focus();
+      }
+    }).catch(function() {
+      // Firebase未接続時はデフォルトPW
+      if (inp.value === DEFAULT_PW) { unlock(); }
+      else {
+        if (err) err.textContent = 'パスワードが違います';
+        inp.value = '';
+        inp.focus();
+      }
+    });
+  }
+  if (btn) btn.addEventListener('click', tryLogin);
   if (inp) inp.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && btn) btn.click();
+    if (e.key === 'Enter') tryLogin();
   });
 });
 </script>
@@ -335,6 +348,17 @@ select.form-input{appearance:auto;-webkit-appearance:auto;cursor:pointer;color-s
       </div>
     </div>
     <div id="tab-parent" style="display:none;overflow-y:auto;padding:8px;flex-shrink:0;border-top:0.5px solid var(--border);max-height:60vh">
+      <!-- パスワード管理 -->
+      <div style="padding:8px 4px;margin-bottom:8px">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">🔐 パスワード管理</div>
+        <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+          <input type="password" id="pw-all-new" placeholder="新しいパスワード" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--surface2);color:var(--text);outline:none">
+          <button onclick="updatePassword()" style="padding:7px 10px;background:linear-gradient(135deg,#4a90d9,#2176c7);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">変更</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted)">※ 管理者画面・iPad（青・黄）共通で変更されます</div>
+      </div>
+      <div style="border-top:0.5px solid var(--border);margin:0 -8px 8px"></div>
+
       <!-- 運行状況設定 -->
       <div style="padding:8px 4px;margin-bottom:8px">
         <div style="font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">本日の運行状況</div>
@@ -1104,6 +1128,17 @@ db.ref('config/operation').on('value', function(snap) {
   var labels = { normal:'通常運行', half:'半日運行', cancel:'運休' };
   el.textContent = '現在：' + (labels[data.status] || data.status) + (data.message ? '　' + data.message : '');
 });
+
+function updatePassword() {
+  var pw = document.getElementById('pw-all-new').value.trim();
+  if (!pw) { toast('パスワードを入力してください'); return; }
+  if (pw.length < 4) { toast('4文字以上で設定してください'); return; }
+  // 管理者・iPad両方同時に変更
+  db.ref('config/passwords').set({ monitor: pw, ipad: pw }).then(function() {
+    document.getElementById('pw-all-new').value = '';
+    toast('✅ パスワードを変更しました（管理者・iPad共通）');
+  });
+}
 
 function updateOpMessage() {
   var msg = document.getElementById('op-message').value.trim();
