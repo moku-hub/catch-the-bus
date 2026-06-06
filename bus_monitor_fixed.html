@@ -444,8 +444,14 @@ db.ref('config/stops').on('value', function(snap) {
   var data = snap.val();
   if (data) {
     // Firebaseは配列をオブジェクトに変換することがあるため、必ず配列に戻す
-    stops['1'] = data['1'] ? Object.values(data['1']) : [];
-    stops['2'] = data['2'] ? Object.values(data['2']) : [];
+    // Firebaseはarrayをobjectで返すのでindexの順番を保証して変換
+    function toOrderedArray(obj) {
+      if (!obj) return [];
+      if (Array.isArray(obj)) return obj;
+      return Object.keys(obj).sort(function(a,b){return Number(a)-Number(b);}).map(function(k){return obj[k];});
+    }
+    stops['1'] = toOrderedArray(data['1']);
+    stops['2'] = toOrderedArray(data['2']);
     renderStops();
     renderStopList('1');
     renderStopList('2');
@@ -685,6 +691,24 @@ function renderPassRecords(data) {
   }
   el.innerHTML = records.slice(0, 50).map(function(r) {
     var color = r.busName === '青バス' ? '#4f9cf9' : '#fbbf24';
+    if (r.isDepart) {
+      return '<div class="pass-record" style="background:rgba(79,156,249,0.08);border:0.5px solid rgba(79,156,249,0.3)">' +
+        '<div class="pass-record-header">' +
+        '<span class="pass-record-bus" style="color:' + color + '">🚌 ' + r.busName + '</span>' +
+        '<span class="pass-record-time">' + r.time + '</span>' +
+        '</div>' +
+        '<div class="pass-record-stop" style="color:#4f9cf9;font-weight:600">🚌 出発</div>' +
+        '</div>';
+    }
+    if (r.isArrive) {
+      return '<div class="pass-record" style="background:rgba(52,211,153,0.08);border:0.5px solid rgba(52,211,153,0.3)">' +
+        '<div class="pass-record-header">' +
+        '<span class="pass-record-bus" style="color:' + color + '">🚌 ' + r.busName + '</span>' +
+        '<span class="pass-record-time">' + r.time + '</span>' +
+        '</div>' +
+        '<div class="pass-record-stop" style="color:#34d399;font-weight:600">🏁 到着</div>' +
+        '</div>';
+    }
     return '<div class="pass-record">' +
       '<div class="pass-record-header">' +
       '<span class="pass-record-bus" style="color:' + color + '">🚌 ' + r.busName + '</span>' +

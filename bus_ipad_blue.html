@@ -329,7 +329,16 @@ document.getElementById('start-btn').addEventListener('click', function() {
   db.ref('bus_checklist/' + busId).remove();
   // 運行開始と同時に「出発」を記録
   const startNow = new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-  passedStops.push({name: '🚌 出発', time: startNow, route: document.getElementById('bus-route-sel').value, isDepart: true});
+  const departRoute = document.getElementById('bus-route-sel').value;
+  passedStops.push({name: '🚌 出発', time: startNow, route: departRoute, isDepart: true});
+  db.ref('pass_records/' + busId + '/' + Date.now()).set({
+    busName: document.getElementById('bus-name').value,
+    stopName: '🚌 出発',
+    time: startNow,
+    route: departRoute,
+    timestamp: Date.now(),
+    isDepart: true
+  });
   saveSession();
   renderStopChecklist();
 
@@ -421,6 +430,14 @@ function checkNearbyStops(lat, lng) {
     // 最後のバス停なら「到着」を追加
     if (nextIndex === list.length - 1) {
       passedStops.push({name: '🏁 到着', time: now, route: r, isArrive: true});
+      db.ref('pass_records/' + busId + '/' + (Date.now()+1)).set({
+        busName: document.getElementById('bus-name').value,
+        stopName: '🏁 到着',
+        time: now,
+        route: r,
+        timestamp: Date.now()+1,
+        isArrive: true
+      });
     }
     renderStopChecklist();
     sendPassRecord(s.name, now);
