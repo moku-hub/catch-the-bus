@@ -212,8 +212,8 @@ body {
     <div class="login-logo">🚌</div>
     <div class="login-brand">Catch the Bus</div>
     <div class="login-sub">バス運行情報</div>
-    <input class="login-field" type="number" id="login-num" placeholder="乗車番号" min="1" max="9999">
-    <input class="login-field" type="password" id="login-pw" placeholder="パスワード">
+    <input class="login-field" type="text" inputmode="numeric" id="login-num" placeholder="乗車番号" autocomplete="off">
+    <input class="login-field" type="password" id="login-pw" placeholder="パスワード" autocomplete="new-password">
     <button class="login-btn" id="login-btn">ログイン</button>
     <div class="login-error" id="login-error"></div>
   </div>
@@ -350,6 +350,11 @@ function showMain() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('main-screen').classList.add('visible');
   document.getElementById('display-num').textContent = 'No.' + String(currentUser.num).padStart(3,'0');
+  // 音を有効化するためにAudioContextを初期化（ユーザー操作直後に実行）
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx.resume().then(() => { ctx.close(); });
+  } catch(e) {}
 }
 
 function logout() {
@@ -506,10 +511,11 @@ function renderBusInfo() {
     const passedRec = records.find(r => r.stopName === myStopName);
     msgHTML = `
       <div class="msg-area passed">
-        <div class="msg-icon">✅</div>
-        <div class="msg-main">${myStopName} を通過しました</div>
+        <div class="msg-icon">🚌</div>
+        <div class="msg-main">${myStopName} に到着しました</div>
         <div class="msg-time">${passedRec ? passedRec.time.slice(0,5) : ''}</div>
       </div>`;
+    playSound();
   } else if (prevStopPassed || (stopIndex === 0 && hasDepart)) {
     // 直前のバス停を通過 → 接近中
     const prevRec = stopIndex === 0
@@ -556,27 +562,42 @@ function renderBusInfo() {
 //  通知音
 // ══════════════════════════════
 let lastSoundState = '';
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
 function playSound() {
-  // 状態変化時のみ鳴らす
   const area = document.querySelector('.msg-area');
   const state = area ? area.className : '';
   if (state === lastSoundState) return;
   lastSoundState = state;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    [523, 659, 784].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
+    initAudio();
+    const freqs = state.includes('approaching') ? [523, 659, 784] : [784, 659, 784, 880];
+    freqs.forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.15);
-      gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + i * 0.15 + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.3);
-      osc.start(ctx.currentTime + i * 0.15);
-      osc.stop(ctx.currentTime + i * 0.15 + 0.3);
+      gain.gain.setValueAtTime(0, audioCtx.currentTime + i * 0.18);
+      gain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + i * 0.18 + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.18 + 0.35);
+      osc.start(audioCtx.currentTime + i * 0.18);
+      osc.stop(audioCtx.currentTime + i * 0.18 + 0.35);
     });
   } catch(e) {}
 }
+
+// タップで音を有効化
+document.addEventListener('touchstart', initAudio, { once: true });
+document.addEventListener('click', initAudio, { once: true });
 
 function showPwChange() {
   document.getElementById('pw-change-modal').style.display = 'flex';
